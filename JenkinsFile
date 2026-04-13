@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+
+    environment {
+        // Option to inject secret via Jenkins credentials if configured
+        // ENV_VARS = credentials('env-file-secret')
+        REPO_URL = 'https://github.com/Rayyan-Imtiaz/colorpalette.git'
+    }
+
+    stages {
+        stage('Checkout Source Code') {
+            steps {
+                // Fetch code from the repository
+                git branch: 'main', url: "${REPO_URL}"
+            }
+        }
+        
+        stage('Prepare Environment Variables') {
+            steps {
+                // Setup the .env file needed by docker-compose
+                sh '''
+                echo "MONGODB_URI=mongodb://db:27017/colorpalette" > .env
+                echo "COOKIE_DOMAIN=localhost" >> .env
+                echo "NODE_ENV=production" >> .env
+                echo "JWT_SECRET=45e269616244b956ae28e61bd633899d" >> .env
+                '''
+            }
+        }
+
+        stage('Clean Previous Deployment') {
+            steps {
+                // Bring down previous part 2 containers to allow fresh start
+                sh 'docker compose -f docker-compose.ci.yml down || true'
+            }
+        }
+
+        stage('Build & Deploy with Docker') {
+            steps {
+                // Start the containers using the CI version of docker-compose
+                sh 'docker compose -p colorpalette-part2 -f docker-compose.ci.yml up -d'
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Part II Pipeline deployed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed during execution.'
+        }
+    }
+}

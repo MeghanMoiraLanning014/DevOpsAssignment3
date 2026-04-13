@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  web:
+    image: meghanmoiralanning/color-palette-web:latest
+    container_name: color-palette-web-ci
+    ports:
+      - "5000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    command: npm run start
+
+  db:
+    image: mongo:latest
+    container_name: color-palette-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - db_data:/data/db
+
+volumes:
+  db_data:
