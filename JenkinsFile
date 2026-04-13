@@ -4,7 +4,7 @@ pipeline {
     environment {
         // Option to inject secret via Jenkins credentials if configured
         // ENV_VARS = credentials('env-file-secret')
-        REPO_URL = 'https://github.com/Rayyan-Imtiaz/colorpalette.git'
+        REPO_URL = 'https://github.com/MeghanMoiraLanning014/colorpalette.git'
     }
 
     stages {
