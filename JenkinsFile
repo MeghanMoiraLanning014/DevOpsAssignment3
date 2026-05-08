@@ -2,22 +2,19 @@ pipeline {
     agent any
 
     environment {
-        // Option to inject secret via Jenkins credentials if configured
-        // ENV_VARS = credentials('env-file-secret')
-        REPO_URL = 'https://github.com/MeghanMoiraLanning014/colorpalette.git'
+        APP_REPO_URL   = 'https://github.com/MeghanMoiraLanning014/DevOpsAssignment3.git'
+        TEST_REPO_URL  = 'https://github.com/MeghanMoiraLanning014/colorpalette-tests.git'
     }
 
     stages {
-        stage('Checkout Source Code') {
+        stage('Checkout App Code') {
             steps {
-                // Fetch code from the repository
-                git branch: 'main', url: "${REPO_URL}"
+                git branch: 'main', url: "${APP_REPO_URL}"
             }
         }
-        
-        stage('Prepare Environment Variables') {
+
+        stage('Prepare Environment') {
             steps {
-                // Setup the .env file needed by docker-compose
                 sh '''
                 echo "MONGODB_URI=mongodb://db:27017/colorpalette" > .env
                 echo "COOKIE_DOMAIN=localhost" >> .env
@@ -27,27 +24,80 @@ pipeline {
             }
         }
 
-        stage('Clean Previous Deployment') {
+        stage('Clean Previous Containers') {
             steps {
-                // Bring down previous part 2 containers to allow fresh start
                 sh 'docker compose -f docker-compose.ci.yml down || true'
             }
         }
 
-        stage('Build & Deploy with Docker') {
+        stage('Build & Deploy') {
             steps {
-                // Start the containers using the CI version of docker-compose
-                sh 'docker compose -p colorpalette-part2 -f docker-compose.ci.yml up -d'
+                sh 'docker compose -p colorpalette -f docker-compose.ci.yml up -d'
+                // Wait for app to be ready
+                sh 'sleep 30'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'rm -rf test-repo && git clone ${TEST_REPO_URL} test-repo'
+                sh '''
+                docker run --rm \
+                    --network host \
+                    -v $(pwd)/test-repo:/usr/src/app \
+                    -w /usr/src/app \
+                    markhobson/maven-chrome:jdk-11 \
+                    mvn test -Dapp.url=http://localhost:5001
+                '''
             }
         }
     }
-    
+
     post {
-        success {
-            echo 'Part II Pipeline deployed successfully!'
+        always {
+            // Get the email of whoever made the last commit
+            script {
+                def committerEmail = sh(
+                    script: "git log -1 --pretty=format:'%ae'",
+                    returnStdout: true
+                ).trim()
+
+                def committerName = sh(
+                    script: "git log -1 --pretty=format:'%an'",
+                    returnStdout: true
+                ).trim()
+
+                def buildStatus = currentBuild.currentResult
+
+                emailext(
+                    to: "${committerEmail}",
+                    subject: "Jenkins Build ${buildStatus}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                        <h2>Build ${buildStatus}</h2>
+                        <p>Hi ${committerName},</p>
+                        <p>Your recent commit triggered the Jenkins pipeline.</p>
+                        <ul>
+                            <li><b>Job:</b> ${env.JOB_NAME}</li>
+                            <li><b>Build Number:</b> ${env.BUILD_NUMBER}</li>
+                            <li><b>Status:</b> ${buildStatus}</li>
+                            <li><b>Duration:</b> ${currentBuild.durationString}</li>
+                        </ul>
+                        <p>View full logs: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                    """,
+                    mimeType: 'text/html'
+                )
+            }
+
+            junit allowEmptyResults: true,
+                  testResults: 'test-repo/target/surefire-reports/*.xml'
         }
+
+        success {
+            echo 'Pipeline passed — Build and Tests successful!'
+        }
+
         failure {
-            echo 'Pipeline failed during execution.'
+            echo 'Pipeline failed — check logs above.'
         }
     }
 }
