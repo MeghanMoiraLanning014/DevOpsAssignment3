@@ -5,7 +5,7 @@ services:
     image: meghanmoiralanning/color-palette-web:latest
     container_name: color-palette-web-ci
     ports:
-      - "6000:3000"
+      - "4000:3000"
     env_file:
       - .env
     depends_on:
