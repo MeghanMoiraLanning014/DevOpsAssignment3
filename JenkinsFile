@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        APP_REPO_URL   = 'https://github.com/MeghanMoiraLanning014/DevOpsAssignment3.git'
-        TEST_REPO_URL  = 'https://github.com/MeghanMoiraLanning014/colorpalette-tests.git'
+        APP_REPO_URL   = 'https://github.com/MeghanMoiraLanning014/colorpalette.git'
+        TEST_REPO_URL  = 'https://github.com/MeghanMoiraLanning014/ColorPalette-Tests.git'
     }
 
     stages {
