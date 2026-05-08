@@ -10,7 +10,11 @@ services:
       - .env
     volumes:
       - .:/app
+      - /app/node_modules
+      - /app/.next
     working_dir: /app
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=1024
     command: >
       sh -c "apk add --no-cache python3 make g++ krb5-dev && 
              npm install --legacy-peer-deps && 
